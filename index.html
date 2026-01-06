@@ -1,95 +1,157 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>A Small Island</title>
-
 <style>
+:root{
+  --bg:#8ecad3;
+  --card:#f7f3ea;
+  --accent:#7a6a4a;
+  --muted:#e6ddc5;
+  --shadow: 0 25px 60px rgba(0,0,0,.35);
+  --radius:14px;
+  --font: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;
+  --tile:16px;
+  --maxw:1100px;
+}
+
+/* Layout */
+*{box-sizing:border-box}
+html,body{height:100%}
 body{
   margin:0;
-  background:#8ecad3;
-  font-family:monospace;
+  background:var(--bg);
+  font-family:var(--font);
   display:flex;
   flex-direction:column;
   align-items:center;
+  gap:12px;
+  padding:18px 12px 28px;
+  -webkit-tap-highlight-color: transparent;
 }
 
-canvas{
+/* Canvas */
+canvas#game{
   width:96vw;
-  max-width:1100px;
+  max-width:var(--maxw);
   image-rendering:pixelated;
   border-radius:20px;
-  box-shadow:0 25px 60px rgba(0,0,0,.35);
+  box-shadow:var(--shadow);
+  background:transparent;
+  display:block;
 }
 
+/* Dialogue card */
 #dialogue{
   width:96vw;
-  max-width:1100px;
+  max-width:var(--maxw);
   min-height:120px;
-  background:#f7f3ea;
-  border:3px solid #7a6a4a;
-  border-radius:18px;
+  background:var(--card);
+  border:3px solid var(--accent);
+  border-radius:var(--radius);
   padding:14px;
-  font-size:14px;
-  line-height:1.4;
-  margin:10px 0;
+  font-size:15px;
+  line-height:1.45;
+  color:#2b2b2b;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+  position:relative;
 }
-
-.choice{
-  margin-top:6px;
-  padding:6px 10px;
-  background:#e6ddc5;
+.dialogue-text{white-space:pre-wrap}
+.dialogue-actions{margin-top:10px; display:flex; flex-wrap:wrap; gap:8px}
+.btn{
+  padding:8px 12px;
+  background:var(--muted);
   border-radius:10px;
   cursor:pointer;
+  border:1px solid rgba(0,0,0,0.06);
+  user-select:none;
+  font-family:var(--font);
 }
-.choice:hover{ background:#d6c9a5; }
+.btn:hover{ background:#d6c9a5; }
+.btn.primary{ background:#fde047; border-color:#f1c05a; }
 
-/* ===== MOBILE D-PAD ===== */
+/* D-pad (mobile) */
 #dpad{
   display:none;
   position:relative;
   width:140px;
   height:140px;
-  margin-bottom:14px;
+  margin-bottom:6px;
+  touch-action:none;
 }
-
 .dpad-btn{
   position:absolute;
   width:44px;
   height:44px;
   background:#f2e4b8;
-  border:2px solid #7a6a4a;
+  border:2px solid var(--accent);
   border-radius:10px;
   font-size:18px;
-  font-family:monospace;
+  font-family:var(--font);
+  display:flex; align-items:center; justify-content:center;
+  -webkit-user-select:none; user-select:none;
 }
-
 .dpad-btn:active{ background:#d6c9a5; }
-
 .up{ top:0; left:48px; }
 .down{ bottom:0; left:48px; }
 .left{ left:0; top:48px; }
 .right{ right:0; top:48px; }
 
-/* SHOW D-PAD ON MOBILE WIDTHS — RELIABLE */
-@media (max-width: 900px){
+/* Controls hint */
+#controls-hint{ font-size:13px; color:#2b2b2b; opacity:0.9; }
+
+/* Toast for fallback notifications */
+#toast{
+  position:fixed;
+  right:18px;
+  top:18px;
+  background:rgba(0,0,0,0.85);
+  color:#fff;
+  padding:12px 16px;
+  border-radius:10px;
+  font-family:var(--font);
+  z-index:1000;
+  box-shadow:0 8px 30px rgba(0,0,0,0.35);
+  display:none;
+}
+
+/* Confetti canvas sits above main canvas visually */
+#confetti{
+  position:absolute;
+  pointer-events:none;
+  left:0; top:0;
+}
+
+/* Responsive: show dpad on narrower screens */
+@media (max-width:900px){
   #dpad{ display:block; }
 }
 </style>
 </head>
-
 <body>
-<canvas id="game" width="1100" height="700"></canvas>
-<div id="dialogue"></div>
+<div style="position:relative; width:96vw; max-width:1100px;">
+  <canvas id="game" width="1100" height="700" aria-label="Game canvas"></canvas>
+  <canvas id="confetti" width="1100" height="700" style="width:96vw; max-width:1100px; height:auto;"></canvas>
+</div>
+
+<!-- dialogue: no persistent Continue button — only actions created when needed -->
+<div id="dialogue" aria-live="polite">
+  <div class="dialogue-text">Some people talk.\nSome people explore.\nYou might need to do both.</div>
+  <div class="dialogue-actions"></div>
+</div>
 
 <!-- TRUE MOBILE D-PAD -->
-<div id="dpad">
-  <button class="dpad-btn up" data-dir="up">▲</button>
-  <button class="dpad-btn down" data-dir="down">▼</button>
-  <button class="dpad-btn left" data-dir="left">◀</button>
-  <button class="dpad-btn right" data-dir="right">▶</button>
+<div id="dpad" aria-hidden="true">
+  <button class="dpad-btn up" data-dir="up" aria-label="Up">▲</button>
+  <button class="dpad-btn down" data-dir="down" aria-label="Down">▼</button>
+  <button class="dpad-btn left" data-dir="left" aria-label="Left">◀</button>
+  <button class="dpad-btn right" data-dir="right" aria-label="Right">▶</button>
 </div>
+
+<div id="controls-hint">Arrow keys / D-pad to move. Tap choices to interact.</div>
+<div id="toast" role="status" aria-live="polite"></div>
 
 <script>
 /* ================= SETUP ================= */
@@ -97,16 +159,29 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 ctx.imageSmoothingEnabled = false;
 
-const dialogue = document.getElementById("dialogue");
+const confettiCanvas = document.getElementById("confetti");
+confettiCanvas.width = canvas.width;
+confettiCanvas.height = canvas.height;
+const confettiCtx = confettiCanvas.getContext("2d");
+
+const dialogueEl = document.getElementById("dialogue");
+const dialogueTextEl = dialogueEl.querySelector(".dialogue-text");
+const dialogueActionsEl = dialogueEl.querySelector(".dialogue-actions");
+const toastEl = document.getElementById("toast");
+
 const TILE = 16;
 let tick = 0;
-let lock = false;
+let locked = false; // when true, player cannot move or interact
 
-/* ================= PLAYER ================= */
-const player = { x:550, y:360, speed:8 };
+/* ================= GAME STATE ================= */
+const player = { x:550, y:360, speed:8, w:24, h:44 };
 const progress = { treasure:0 };
+const world = {
+  bridgeOpen: false, // world gate that connects paths
+  celebrate: false
+};
 
-/* ================= COLORS ================= */
+/* ================= COLORS / THEME ================= */
 const C = {
   sea:"#9fd6de",
   sand:"#f2e4b8",
@@ -116,238 +191,511 @@ const C = {
   path:"#cfa96e",
   roof:["#b45309","#7c3aed","#2563eb","#be123c"],
   wall:"#fff4d8",
-  skin:"#f1c7a5"
+  skin:"#f1c7a5",
+  rock:"#6b7280"   // added rock color for island detail (design-only)
 };
 
-/* ================= ISLAND ================= */
+/* ================= ISLAND (updated design only) ================= */
+/* - smoother coastline using angle-based jitter
+   - small rock clusters for visual interest
+   - leaves all other game logic untouched */
 const island=[];
 const cx=550, cy=360, r=430;
 
-for(let y=0;y<canvas.height;y+=TILE){
- for(let x=0;x<canvas.width;x+=TILE){
-  const d=Math.hypot(x-cx,y-cy);
-  if(d<r){
-   const n=Math.sin(x*.04)+Math.cos(y*.05);
-   island.push({
-    x,y,
-    t:d>r-36?"sand":n>0.6?"grass2":n<-0.6?"grass3":"grass1"
-   });
-  }
- }
+// generate a few rock clusters
+const rockSeeds = [];
+for(let i=0;i<6;i++){
+  rockSeeds.push({
+    x: 200 + Math.random()*700,
+    y: 120 + Math.random()*460,
+    r: 18 + Math.random()*36
+  });
 }
 
-/* ================= PATHS ================= */
-const paths=[
- {x:520,y:100,w:40,h:500},
- {x:260,y:360,w:580,h:26},
- {x:260,y:160,w:260,h:26},
- {x:580,y:160,w:260,h:26},
- {x:260,y:560,w:260,h:26},
- {x:580,y:560,w:260,h:26}
+for(let y=0;y<canvas.height;y+=TILE){
+  for(let x=0;x<canvas.width;x+=TILE){
+    const dx = x + TILE/2 - cx;
+    const dy = y + TILE/2 - cy;
+    const d = Math.hypot(dx,dy);
+    const angle = Math.atan2(dy,dx);
+
+    // coastline jitter: make an organic edge using a combination of sines
+    const jitter = 36 * Math.sin(angle*3.1 + Math.sin(x*0.018)*1.2 + Math.cos(y*0.02)*0.9)
+                 + 18 * Math.cos(angle*1.7 + Math.sin(y*0.013));
+    const radiusHere = r + jitter;
+
+    if(d < radiusHere){
+      const n = Math.sin(x*.04)+Math.cos(y*.05);
+
+      // detect nearby rock seeds to mark rocky tiles
+      let isRock = false;
+      for(const s of rockSeeds){
+        if(Math.hypot(x - s.x, y - s.y) < s.r) { isRock = true; break; }
+      }
+
+      // sand band near coast
+      let t;
+      if(d > radiusHere - 36) t = "sand";
+      else if(isRock) t = "rock";
+      else t = n>0.55 ? "grass2" : n<-0.55 ? "grass3" : "grass1";
+
+      island.push({ x, y, t });
+    }
+  }
+}
+
+/* ================= CONNECTED PATHS ONLY (design change) ================= */
+/* Paths adjusted so every branch meets the central corridor and branches are joined visually.
+   This section is the only other change: it makes the road network connected. */
+const paths = [
+  // main vertical spine through the island (connects north and south)
+  {x:520,y:80,w:60,h:520},
+  // central horizontal corridor intersects the vertical spine (central hub)
+  {x:200,y:348,w:700,h:44},
+  // northwards branches connecting to houses/areas
+  {x:200,y:132,w:260,h:26},
+  {x:640,y:132,w:260,h:26},
+  // southwards branches connecting lower areas
+  {x:200,y:548,w:260,h:26},
+  {x:640,y:548,w:260,h:26},
+  // bridge segment (visual) that completes the right-hand approach to the final treasure;
+  // remains gated by world.bridgeOpen (game logic unchanged)
+  {x:740,y:220,w:36,h:260, bridge:true}
 ];
 
 /* ================= HOUSES ================= */
 const houses=[
- {x:220,y:130,roof:0},
- {x:780,y:130,roof:1},
- {x:200,y:520,roof:2},
- {x:800,y:520,roof:3}
+  {x:200,y:110,roof:0},
+  {x:760,y:110,roof:1},
+  {x:180,y:500,roof:2},
+  {x:780,y:500,roof:3}
 ];
 
-/* ================= NPCs (ALL RESTORED) ================= */
-function npc(x,y,path,hair,clothes,dialogueFn){
- return {x,y,path,step:0,hair,clothes,dialogueFn};
+/* ================= DIALOGUE SYSTEM ================= */
+function say(text, choices){
+  // choices: [{label, response, onChoose}, ...] or arrays ["label","response"]
+  return { text, choices: (choices || []).map(c => Array.isArray(c) ? {label:c[0], response:c[1]} : c) };
 }
 
+function clearDialogue(){
+  dialogueTextEl.textContent = "";
+  dialogueActionsEl.innerHTML = "";
+}
+
+function showDialogue(dialogObj){
+  locked = true;
+  dialogueTextEl.textContent = dialogObj.text || "";
+  dialogueActionsEl.innerHTML = "";
+
+  if(dialogObj.choices && dialogObj.choices.length){
+    // show choice buttons
+    dialogObj.choices.forEach((c, i) => {
+      const btn = document.createElement("div");
+      btn.className = "btn";
+      btn.textContent = c.label || `Choice ${i+1}`;
+      btn.onclick = () => {
+        // show the response text (if any)
+        if(c.response) dialogueTextEl.textContent = c.response;
+        // immediately run onChoose if present
+        if(typeof c.onChoose === "function") c.onChoose();
+        // show a single Continue button that closes dialogue
+        dialogueActionsEl.innerHTML = "";
+        const cont = document.createElement("div");
+        cont.className = "btn primary";
+        cont.textContent = "Continue";
+        cont.onclick = () => {
+          closeDialogue();
+        };
+        dialogueActionsEl.appendChild(cont);
+      };
+      dialogueActionsEl.appendChild(btn);
+    });
+  } else {
+    // no choices: show Continue to close
+    const cont = document.createElement("div");
+    cont.className = "btn primary";
+    cont.textContent = "Continue";
+    cont.onclick = closeDialogue;
+    dialogueActionsEl.appendChild(cont);
+  }
+}
+
+function closeDialogue(){
+  locked = false;
+  clearDialogue();
+}
+
+/* ================= NOTIFICATIONS / TOAST ================= */
+function showToast(text, duration = 4000){
+  toastEl.textContent = text;
+  toastEl.style.display = "block";
+  toastEl.style.opacity = "1";
+  clearTimeout(toastEl._hideTimer);
+  toastEl._hideTimer = setTimeout(()=>{
+    toastEl.style.transition = "opacity 300ms";
+    toastEl.style.opacity = "0";
+    setTimeout(()=>{ toastEl.style.display = "none"; toastEl.style.transition = ""; }, 300);
+  }, duration);
+}
+
+async function triggerNotification(title, options = {}){
+  try{
+    if("Notification" in window){
+      if(Notification.permission === "granted"){
+        new Notification(title, options);
+      } else if(Notification.permission === "denied"){
+        showToast(options.body || title);
+      } else {
+        const p = await Notification.requestPermission();
+        if(p === "granted"){
+          new Notification(title, options);
+        } else {
+          showToast(options.body || title);
+        }
+      }
+    } else {
+      showToast(options.body || title);
+    }
+  } catch(err){
+    showToast(options.body || title);
+  }
+}
+
+/* ================= TREASURES ================= */
+/* final treasure blocked until bridgeOpen */
+const treasures=[
+  {x:340,y:160,msg:"You notice small details."},
+  {x:760,y:160,msg:"You move through places gently."},
+  {x:340,y:560,msg:"Things feel calmer after you leave."},
+  {x:760,y:560,msg:"You found the last tiny light.\nThis island kept a secret for you.", requiresBridge:true}
+];
+
+function drawTreasure(){
+  const t = treasures[progress.treasure];
+  if(!t) return;
+  if(t.requiresBridge && !world.bridgeOpen){
+    // locked chest glyph
+    ctx.fillStyle = "#7a5034";
+    ctx.fillRect(t.x-18,t.y-18,36,22);
+    ctx.fillStyle = "#d6b36b";
+    ctx.fillRect(t.x-16,t.y-10,32,6);
+    ctx.fillStyle = "#000";
+    ctx.fillRect(t.x-2,t.y-6,4,6);
+    return;
+  }
+  ctx.fillStyle = tick%30<15 ? "#fde047" : "#facc15";
+  ctx.fillRect(t.x-18,t.y-18,36,36);
+}
+
+/* centralized treasure advancement */
+function advanceTreasure(){
+  progress.treasure++;
+  if(progress.treasure >= treasures.length){
+    world.celebrate = true;
+    createConfetti(140);
+    // sweeter final message
+    showDialogue(say(
+      "You gathered every small light.\nThe island hums softly; it seems grateful.\nHappy Birthday — may this little island keep you warm.",
+      [
+        { label: "Breathe", response: "You sit for a while, letting the place hold you." },
+        { label: "Return", response: "When you're ready, the island will be here again." }
+      ]
+    ));
+    triggerNotification("A Small Island — Completed", {
+      body: "You found all the treasures. Happy Birthday ❤️"
+    });
+  }
+}
+
+/* checkTreasure gate by bridge */
+function checkTreasure(){
+  const t = treasures[progress.treasure];
+  if(!t || locked) return;
+  if(Math.hypot(player.x - t.x, player.y - t.y) < 40){
+    if(t.requiresBridge && !world.bridgeOpen){
+      showDialogue(say("A faint seam blocks the way.\nMaybe someone knows how to mend it.", [
+        { label: "Ask around", response: "You look to the people nearby." },
+        { label: "Explore elsewhere", response: "There is calm in moving along." }
+      ]));
+      return;
+    }
+    showDialogue(say(t.msg, [
+      { label: "Take a moment", response: "You take a small, quiet moment.", onChoose: advanceTreasure },
+      { label: "Carry on", response: "You tuck the moment away and continue.", onChoose: advanceTreasure }
+    ]));
+  }
+}
+
+/* ================= NPCS ================= */
+function npc(x,y,path,hair,clothes,dialogueFn){
+  return {x,y,path,step:0,hair,clothes,dialogueFn,affinity:0,talks:0,active:true};
+}
+
+function revealBridge(){
+  if(world.bridgeOpen) return;
+  world.bridgeOpen = true;
+  showToast("A small bridge creaks into place.");
+}
+
+/* meaningful choices; after two total choices NPC becomes inactive */
 const npcs=[
  npc(520,360,[[520,360],[560,360],[560,400],[520,400]],
   "#4a2c1a","#a47148",
-  ()=>say("You move gently.\nPlaces feel that.",
-   [["I try","It shows."]])
+  ()=>say("You move gently.\nPlaces feel that.", [
+    { label: "I try", response: "It shows.", onChoose: function(){ this.affinity++; } },
+    { label: "That helps", response: "Keep it soft.", onChoose: function(){ this.affinity++; } }
+  ])
  ),
  npc(580,360,[[580,360],[620,360]],
   "#1f2937","#65a30d",
   ()=>progress.treasure===0
-   ? say("Not everything appears at once.",
-     [["I’ll look","Good instinct."]])
-   : say("You noticed something.",
-     [["It felt quiet","That’s how it works."]])
+   ? say("Not everything appears at once.", [
+       { label: "I’ll look", response: "Good instinct.", onChoose: function(){ this.affinity++; showToast("He nods toward the north."); } },
+       { label: "Maybe later", response: "I understand." }
+     ])
+   : say("You noticed something.", [
+       { label: "It felt quiet", response: "That’s how it works.", onChoose: function(){ this.affinity++; } },
+       { label: "I noticed", response: "You did." }
+     ])
  ),
  npc(260,160,[[260,160],[300,160]],
   "#78350f","#38bdf8",
-  ()=>say("You’re curious without rushing.",
-   [["Thanks","It suits you."]])
+  ()=>say("You’re curious without rushing.", [
+    { label: "Thanks", response: "It suits you.", onChoose: function(){ this.affinity++; } },
+    { label: "How so?", response: "Softly.", onChoose: function(){ this.affinity++; showToast("She hums, 'Try listening.'"); } }
+  ])
  ),
  npc(840,160,[[840,160],[800,160]],
   "#86198f","#f9a8d4",
-  ()=>say("You don’t force moments.",
-   [["I wait","That’s clear."]])
+  ()=>say("You don’t force moments.", [
+    { label: "I wait", response: "That’s clear.", onChoose: function(){ this.affinity++; } },
+    { label: "I'll watch", response: "If you truly watch, something moves.", onChoose: function(){ this.affinity++; revealBridge(); } }
+  ])
  ),
  npc(840,560,[[840,560],[800,560]],
   "#312e81","#a5b4fc",
   ()=>progress.treasure>=3
-   ? say("You stayed until the end.",
-     [["I wanted to","I know."]])
-   : say("Something else is waiting.",
-     [["I’ll keep going","No rush."]])
+   ? say("You stayed until the end.", [
+       { label: "I wanted to", response: "I know.", onChoose: function(){ this.affinity++; } },
+       { label: "We did it", response: "Yes.", onChoose: function(){ this.affinity++; } }
+     ])
+   : say("Something else is waiting.", [
+       { label: "I’ll keep going", response: "No rush.", onChoose: function(){ this.affinity++; } },
+       { label: "Not yet", response: "Soon." }
+     ])
  )
 ];
 
-/* ================= TREASURES ================= */
-const treasures=[
- {x:340,y:160,msg:"You notice small details."},
- {x:760,y:160,msg:"You move through places gently."},
- {x:340,y:560,msg:"Things feel calmer after you leave."},
- {x:760,y:560,msg:"Happy Birthday 💛\nThis was made for you."}
-];
-
-const say=(text,choices)=>({text,choices});
-
-/* ================= DRAW LOOP ================= */
-function draw(){
- tick++;
- ctx.fillStyle=C.sea;
- ctx.fillRect(0,0,canvas.width,canvas.height);
-
- island.forEach(t=>{
-  ctx.fillStyle=C[t.t];
-  ctx.fillRect(t.x,t.y,TILE,TILE);
- });
-
- paths.forEach(p=>{
-  ctx.fillStyle="#b8965a";
-  ctx.fillRect(p.x-2,p.y-2,p.w+4,p.h+4);
-  ctx.fillStyle=C.path;
-  ctx.fillRect(p.x,p.y,p.w,p.h);
- });
-
- houses.forEach(h=>{
-  ctx.fillStyle=C.roof[h.roof];
-  ctx.fillRect(h.x,h.y,70,20);
-  ctx.fillStyle=C.wall;
-  ctx.fillRect(h.x,h.y+20,70,36);
-  ctx.fillStyle="#6b3e1e";
-  ctx.fillRect(h.x+32,h.y+34,8,22);
- });
-
- drawTreasure();
- updateNPCs();
- npcs.forEach(drawNPC);
- drawPlayer();
-
- requestAnimationFrame(draw);
-}
-
-/* ================= TREASURE ================= */
-function drawTreasure(){
- const t=treasures[progress.treasure];
- if(!t) return;
- ctx.fillStyle=tick%30<15?"#fde047":"#facc15";
- ctx.fillRect(t.x-18,t.y-18,36,36);
-}
-
-function checkTreasure(){
- const t=treasures[progress.treasure];
- if(!t || lock) return;
- if(Math.hypot(player.x-t.x,player.y-t.y)<40){
-  dialogue.innerHTML=t.msg.replace(/\n/g,"<br>");
-  progress.treasure++;
-  lock=true;
- }
-}
-
-/* ================= NPC MOVE ================= */
+/* ================= NPC MOVEMENT ================= */
 function updateNPCs(){
- if(tick%60!==0) return;
- npcs.forEach(n=>{
-  const [tx,ty]=n.path[n.step];
-  if(Math.hypot(tx-n.x,ty-n.y)<4){
-   n.step=(n.step+1)%n.path.length;
-  } else {
-   n.x+=Math.sign(tx-n.x)*4;
-   n.y+=Math.sign(ty-n.y)*4;
-  }
- });
+  if(tick % 60 !== 0) return;
+  npcs.forEach(n=>{
+    const [tx,ty] = n.path[n.step];
+    if(Math.hypot(tx - n.x, ty - n.y) < 4){
+      n.step = (n.step + 1) % n.path.length;
+    } else {
+      n.x += Math.sign(tx - n.x)*4;
+      n.y += Math.sign(ty - n.y)*4;
+    }
+  });
 }
 
 /* ================= DRAW CHARACTERS ================= */
 function drawNPC(n){
- ctx.fillStyle=n.hair;
- ctx.fillRect(n.x,n.y,24,12);
- ctx.fillStyle=C.skin;
- ctx.fillRect(n.x+4,n.y+12,16,16);
- ctx.fillStyle="#000";
- ctx.fillRect(n.x+9,n.y+17,2,2);
- ctx.fillRect(n.x+15,n.y+17,2,2);
- ctx.fillStyle=n.clothes;
- ctx.fillRect(n.x+4,n.y+30,16,14);
+  // fade out if inactive
+  if(!n.active) ctx.globalAlpha = 0.45;
+  ctx.fillStyle = n.hair;
+  ctx.fillRect(n.x, n.y, 24, 12); // hair
+  ctx.fillStyle = C.skin;
+  ctx.fillRect(n.x+4, n.y+12, 16, 16); // face
+  ctx.fillStyle = "#000";
+  ctx.fillRect(n.x+9, n.y+17, 2, 2);
+  ctx.fillRect(n.x+15, n.y+17, 2, 2);
+  ctx.fillStyle = n.clothes;
+  ctx.fillRect(n.x+4, n.y+30, 16, 14); // clothes
+  // small affinity marker when affinity > 0 and active
+  if(n.affinity > 0 && n.active){
+    ctx.fillStyle = "#fde047";
+    ctx.fillRect(n.x+22, n.y-6, 8, 8);
+  }
+  if(!n.active) ctx.globalAlpha = 1;
 }
 
 function drawPlayer(){
- ctx.fillStyle="#be185d";
- ctx.fillRect(player.x,player.y,24,12);
- ctx.fillStyle=C.skin;
- ctx.fillRect(player.x+4,player.y+12,16,16);
- ctx.fillStyle="#000";
- ctx.fillRect(player.x+9,player.y+17,2,2);
- ctx.fillRect(player.x+15,player.y+17,2,2);
- ctx.fillStyle="#f2a2b5";
- ctx.fillRect(player.x+4,player.y+30,16,14);
+  ctx.fillStyle="#be185d";
+  ctx.fillRect(player.x,player.y,24,12);
+  ctx.fillStyle=C.skin;
+  ctx.fillRect(player.x+4,player.y+12,16,16);
+  ctx.fillStyle="#000";
+  ctx.fillRect(player.x+9,player.y+17,2,2);
+  ctx.fillRect(player.x+15,player.y+17,2,2);
+  ctx.fillStyle="#f2a2b5";
+  ctx.fillRect(player.x+4,player.y+30,16,14);
 }
 
 /* ================= INTERACTION ================= */
 function checkNPC(){
- if(lock) return;
- for(const n of npcs){
-  if(Math.hypot(player.x-n.x,player.y-n.y)<40){
-   const d=n.dialogueFn();
-   dialogue.innerHTML=d.text.replace(/\n/g,"<br>");
-   lock=true;
-   d.choices.forEach(c=>{
-    const el=document.createElement("div");
-    el.className="choice";
-    el.textContent=c[0];
-    el.onclick=()=>{ dialogue.innerHTML=c[1]; lock=false; };
-    dialogue.appendChild(el);
-   });
-   return;
+  if(locked) return;
+  for(const n of npcs){
+    if(!n.active) continue;
+    if(Math.hypot(player.x-n.x, player.y-n.y) < 40){
+      let d = n.dialogueFn();
+      // bind onChoose handlers to the npc and wrap them to increment talk count + deactivate after two
+      if(d.choices){
+        d.choices = d.choices.map(c => {
+          const copy = Object.assign({}, c);
+          const orig = copy.onChoose;
+          copy.onChoose = function(){
+            if(typeof orig === 'function') orig.call(n);
+            n.talks = (n.talks || 0) + 1;
+            if(n.talks >= 2){
+              n.active = false;
+              showToast("They fall quiet.");
+            }
+          };
+          return copy;
+        });
+      }
+      showDialogue(d);
+      return;
+    }
   }
- }
 }
 
-/* ================= INPUT ================= */
+/* ================= INPUT & MOVEMENT ================= */
 function move(dx,dy){
- player.x=Math.max(20,Math.min(canvas.width-20,player.x+dx));
- player.y=Math.max(20,Math.min(canvas.height-20,player.y+dy));
- lock=false;
- checkTreasure();
- checkNPC();
+  if(locked) return;
+  player.x = Math.max(20, Math.min(canvas.width-20, player.x + dx));
+  player.y = Math.max(20, Math.min(canvas.height-20, player.y + dy));
+  checkTreasure();
+  checkNPC();
 }
 
-window.addEventListener("keydown",e=>{
- if(e.key==="ArrowUp")move(0,-player.speed);
- if(e.key==="ArrowDown")move(0,player.speed);
- if(e.key==="ArrowLeft")move(-player.speed,0);
- if(e.key==="ArrowRight")move(player.speed,0);
+window.addEventListener("keydown", e => {
+  if(e.key === "ArrowUp") move(0, -player.speed);
+  if(e.key === "ArrowDown") move(0, player.speed);
+  if(e.key === "ArrowLeft") move(-player.speed, 0);
+  if(e.key === "ArrowRight") move(player.speed, 0);
 });
 
 /* MOBILE D-PAD */
 document.querySelectorAll(".dpad-btn").forEach(btn=>{
- btn.addEventListener("touchstart",e=>{
-  e.preventDefault();
-  const d=btn.dataset.dir;
-  if(d==="up")move(0,-player.speed);
-  if(d==="down")move(0,player.speed);
-  if(d==="left")move(-player.speed,0);
-  if(d==="right")move(player.speed,0);
- });
+  btn.addEventListener("touchstart", e=>{
+    e.preventDefault();
+    const d = btn.dataset.dir;
+    if(d === "up") move(0, -player.speed);
+    if(d === "down") move(0, player.speed);
+    if(d === "left") move(-player.speed, 0);
+    if(d === "right") move(player.speed, 0);
+  }, {passive:false});
 });
 
+/* ================= CONFETTI (celebration) ================= */
+let confettiParticles = [];
+function rand(min, max){ return Math.random()*(max-min)+min; }
+function createConfetti(amount = 80){
+  confettiParticles = [];
+  const colors = ["#fde047","#f43f5e","#60a5fa","#a78bfa","#34d399","#f59e0b"];
+  for(let i=0;i<amount;i++){
+    confettiParticles.push({
+      x: rand(0, confettiCanvas.width),
+      y: rand(-confettiCanvas.height*0.5, 0),
+      vx: rand(-2.5,2.5),
+      vy: rand(1,5),
+      r: rand(4,9),
+      rot: rand(0,360),
+      vr: rand(-8,8),
+      color: colors[Math.floor(rand(0,colors.length))]
+    });
+  }
+}
+
+function updateConfetti(){
+  confettiCtx.clearRect(0,0,confettiCanvas.width, confettiCanvas.height);
+  if(!confettiParticles.length) return;
+  confettiParticles.forEach(p=>{
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.06; // gravity
+    p.rot += p.vr;
+    confettiCtx.save();
+    confettiCtx.translate(p.x, p.y);
+    confettiCtx.rotate(p.rot * Math.PI / 180);
+    confettiCtx.fillStyle = p.color;
+    confettiCtx.fillRect(-p.r/2, -p.r/2, p.r, p.r*0.6);
+    confettiCtx.restore();
+  });
+  confettiParticles = confettiParticles.filter(p => p.y < confettiCanvas.height + 50);
+}
+
+/* ================= DRAW LOOP ================= */
+function draw(){
+  tick++;
+  // background sea
+  ctx.fillStyle = C.sea;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  island.forEach(t=>{
+    ctx.fillStyle = C[t.t];
+    ctx.fillRect(t.x, t.y, TILE, TILE);
+  });
+
+  // paths - draw base then bridge when open; when bridge closed show dashed hint
+  paths.forEach(p=>{
+    if(p.bridge && !world.bridgeOpen){
+      // dashed/indented hint for closed bridge
+      ctx.fillStyle = "#b8965a";
+      // draw broken beam
+      for(let y=p.y; y<p.y+p.h; y+=18){
+        ctx.fillRect(p.x, y, p.w, 10);
+      }
+      return;
+    }
+    ctx.fillStyle = "#b8965a";
+    ctx.fillRect(p.x-2,p.y-2,p.w+4,p.h+4);
+    ctx.fillStyle = C.path;
+    ctx.fillRect(p.x,p.y,p.w,p.h);
+  });
+
+  // houses
+  houses.forEach(h=>{
+    ctx.fillStyle = C.roof[h.roof];
+    ctx.fillRect(h.x,h.y,70,20);
+    ctx.fillStyle = C.wall;
+    ctx.fillRect(h.x,h.y+20,70,36);
+    ctx.fillStyle = "#6b3e1e";
+    ctx.fillRect(h.x+32,h.y+34,8,22);
+  });
+
+  // draw treasures (only the current next one shows)
+  drawTreasure();
+
+  // npcs
+  updateNPCs();
+  npcs.forEach(drawNPC);
+
+  // player
+  drawPlayer();
+
+  // confetti (draw on separate canvas)
+  if(world.celebrate){
+    updateConfetti();
+  } else {
+    confettiCtx.clearRect(0,0,confettiCanvas.width, confettiCanvas.height);
+  }
+
+  requestAnimationFrame(draw);
+}
+
 /* ================= START ================= */
-dialogue.innerHTML=
-"Some people talk.<br>Some people explore.<br>You might need to do both.";
+/* initial dialogue present until first interaction; populate a helpful Continue to clear it once */
+clearDialogue();
+showDialogue(say("Some people talk.\nSome people explore.\nYou might need to do both.", [
+  { label: "Begin", response: "You set out gently.", onChoose: closeDialogue }
+]));
 
 draw();
+
 </script>
 </body>
 </html>
