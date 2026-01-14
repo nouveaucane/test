@@ -224,7 +224,7 @@ canvas#game{
   <h3>How to play</h3>
   <p>Move with <strong>Arrow keys</strong> or <strong>WASD</strong>. On mobile, use the D-pad or tap the screen edge where the d-pad appears.</p>
   <p>Walk close to people to talk — they sometimes leave helpful clues. Treasures are small yellow lights resting on the ground; collect them by talking and choosing to "take a moment".</p>
-  <p>One treasure is behind a small seam — listen to people and find where the bridge might appear.</p>
+  <p>One treasure is left behind somewhere... listen to people and find where the bridge might appear.</p>
   <p>Hints appear as toasts and in dialogue when you get close to things. Progress is saved automatically.</p>
   <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
     <button class="btn primary" id="closeHelp">Got it</button>
@@ -522,9 +522,9 @@ function playChime(freq = 880, length=0.18, type='sine'){
 
 /* ================= TREASURES (gentle + ONE-BY-ONE behavior) ================= */
 const treasures=[
-  {x:340,y:160,msg:"You notice small details.\nYou have a soft eye for the quiet things."},
+  {x:340,y:160,msg:"You notice small details.\nYou have a soft eye for the little things."},
   {x:760,y:160,msg:"You move through places gently.\nThat kindness changes everything."},
-  {x:340,y:560,msg:"Things feel calmer after you leave.\nYou leave warmth in your wake."},
+  {x:340,y:560,msg:"Things feel calmer when you come.\nYou leave warmth in your wake."},
   {x:760,y:560,msg:"You found the last tiny light.\nThis island kept a secret for you.", requiresBridge:true}
 ];
 
@@ -613,7 +613,7 @@ function collectCurrent(){
   saveState({ progress: state.progress, world: state.world });
   updateProgressUI();
   playChime(880,0.18,'sine');
-  showToast("Thank you — you were gentle and present.", 2800);
+  showToast("Thank you, you were gentle and present.", 2800);
 
   if(activeIndex < treasures.length){
     const next = treasures[activeIndex];
@@ -629,10 +629,10 @@ function collectCurrent(){
       "You gathered every small light.\nThe island hums softly; it remembers your care.\nHappy Birthday — may this small island hold a quiet warmth for you always.\nYou are seen, you are loved.",
       [
         { label: "Breathe", response: "You sit for a while, letting the place hold you." },
-        { label: "Return", response: "When you're ready, the island will be here again — with a light for you." }
+        { label: "Return", response: "When you're ready, the island will be here again with a light for you." }
       ]
     ));
-    showToast("You found all the treasures. Happy Birthday — you are cherished. ❤️", 9000);
+    showToast("You found all the treasures. Happy Birthday Tala! Hope you have the best day today. ❤️", 9000);
     triggerNotification("A Small Island — Completed", {
       body: "You found all the treasures. Happy Birthday ❤️"
     });
@@ -687,12 +687,12 @@ const npcs=[
   "#1f2937","#65a30d",
   ()=>state.progress.treasure===0
    ? say("Not everything appears at once.\nYour curiosity is lovely.", [
-       { label: "I’ll look", response: "Good instinct — you notice the small things.", onChoose: function(){ this.affinity++; showToast("He smiles and nods toward the north."); } },
+       { label: "I’ll look", response: "Good instinct, you notice the small things.", onChoose: function(){ this.affinity++; showToast("He smiles and nods toward the north."); } },
        { label: "Maybe later", response: "I understand. Take your time." }
      ])
    : say("You noticed something.\nI like how you pay attention.", [
        { label: "It felt quiet", response: "That's part of the magic.", onChoose: function(){ this.affinity++; } },
-       { label: "I noticed", response: "You did — nicely." }
+       { label: "I noticed", response: "You did, nice." }
      ])
  ),
  npc(260,160,[[260,160],[300,160]],
@@ -713,8 +713,8 @@ const npcs=[
   "#312e81","#a5b4fc",
   ()=>state.progress.treasure>=3
    ? say("You stayed until the end.\nThat was brave and beautiful.", [
-       { label: "I wanted to", response: "I know — you gave the island your care.", onChoose: function(){ this.affinity++; } },
-       { label: "We did it", response: "Yes — together.", onChoose: function(){ this.affinity++; } }
+       { label: "I wanted to", response: "I know, you gave the island your care.", onChoose: function(){ this.affinity++; } },
+       { label: "We did it", response: "Yes, together.", onChoose: function(){ this.affinity++; } }
      ])
    : say("Something else is waiting.\nYou're doing well.", [
        { label: "I’ll keep going", response: "No rush. Move gently.", onChoose: function(){ this.affinity++; } },
@@ -1184,4 +1184,5 @@ function roundRect(ctx, x, y, w, h, r, fill, stroke){
 </script>
 </body>
 </html>
+
 
